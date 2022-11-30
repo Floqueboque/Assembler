@@ -1,0 +1,22 @@
+     1                                  %define CHR_LF 10;
+     2                                  
+     3                                  SECTION .data
+     4 00000000 48656C6C6F20776F72-     message: db "Hello world!"
+     4 00000009 6C6421             
+     5 0000000C 0A                               db CHR_LF
+     6                                  
+     7                                  SECTION .rodata
+     8                                  SECTION .bss
+     9                                  SECTION .text
+    10                                  
+    11                                      global _start:function
+    12                                      _start:
+    13 00000000 B801000000                      mov rax, 1
+    14 00000005 BF01000000                      mov rdi, 1
+    15 0000000A 48BE-                           mov rsi, message
+    15 0000000C [0000000000000000] 
+    16 00000014 BA0E000000                      mov rdx, 14
+    17 00000019 0F05                            syscall
+    18                                  
+    19 0000001B B83C000000                      mov eax,60
+    20 00000020 0F05                            syscall

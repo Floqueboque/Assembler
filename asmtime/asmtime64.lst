@@ -1,0 +1,353 @@
+     1                                  ;----------------------------------------------------------------------------
+     2                                  ;  asmtime64.asm - get time of day using gettimeofday system call
+     3                                  ;----------------------------------------------------------------------------
+     4                                  ;
+     5                                  ; DHBW Ravensburg - Campus Friedrichshafen
+     6                                  ;
+     7                                  ; Vorlesung Systemnahe Programmierung (SNP)
+     8                                  ;
+     9                                  ;----------------------------------------------------------------------------
+    10                                  ;
+    11                                  ; Architecture:  x86-64
+    12                                  ; Language:      NASM Assembly Language
+    13                                  ;
+    14                                  ; Author:        Ralf Reutemann
+    15                                  ;
+    16                                  ;----------------------------------------------------------------------------
+    17                                  
+    18                                  %include "syscall.inc"  ; OS-specific system call macros
+     1                              <1> ;-----------------------------------------------------------------------------
+     2                              <1> ;  syscall.inc - OS-specific system call macros
+     3                              <1> ;-----------------------------------------------------------------------------
+     4                              <1> ;
+     5                              <1> ; DHBW Ravensburg - Campus Friedrichshafen
+     6                              <1> ;
+     7                              <1> ; Vorlesung Systemnahe Programmierung (SNP)
+     8                              <1> ;
+     9                              <1> ;----------------------------------------------------------------------------
+    10                              <1> ;
+    11                              <1> ; Architecture:  x86-32 / x86-64
+    12                              <1> ; Language:      NASM Assembly Language
+    13                              <1> ;
+    14                              <1> ; Author:        Ralf Reutemann
+    15                              <1> ;
+    16                              <1> ;----------------------------------------------------------------------------
+    17                              <1> 
+    18                              <1> 
+    19                              <1> %ifndef SYSCALL_INC
+    20                              <1> 
+    21                              <1>     %define SYSCALL_INC
+    22                              <1> 
+    23                              <1> 
+    24                              <1>     %define FD_STDIN              0 ; stdin file descriptor
+    25                              <1>     %define FD_STDOUT             1 ; stdout file descriptor
+    26                              <1>     %define FD_STDERR             2 ; stderr file descriptor
+    27                              <1> 
+    28                              <1> %ifidn __OUTPUT_FORMAT__, elf
+    29                              <1> 
+    30                              <1>     %define SYS_EXIT              1
+    31                              <1>     %define SYS_READ              3
+    32                              <1>     %define SYS_WRITE             4
+    33                              <1>     %define SYS_TIME             13
+    34                              <1>     %define SYS_OPEN              5
+    35                              <1>     %define SYS_CLOSE             6
+    36                              <1>     %define SYS_GETPID           20
+    37                              <1>     %define SYS_GETTIMEOFDAY     78
+    38                              <1>     %define SYS_GETPPID          64
+    39                              <1> 
+    40                              <1> 
+    41                              <1>     %macro SYSCALL_1 1
+    42                              <1>         mov      eax,%1
+    43                              <1>         int      0x80
+    44                              <1>     %endmacro
+    45                              <1> 
+    46                              <1>     %macro SYSCALL_2 2
+    47                              <1>         mov      ebx,%2
+    48                              <1>         mov      eax,%1
+    49                              <1>         int      0x80
+    50                              <1>     %endmacro
+    51                              <1> 
+    52                              <1>     %macro SYSCALL_3 3
+    53                              <1>         mov      ecx,%3
+    54                              <1>         mov      ebx,%2
+    55                              <1>         mov      eax,%1
+    56                              <1>         int      0x80
+    57                              <1>     %endmacro
+    58                              <1> 
+    59                              <1>     %macro SYSCALL_4 4
+    60                              <1>         mov      edx,%4
+    61                              <1>         mov      ecx,%3
+    62                              <1>         mov      ebx,%2
+    63                              <1>         mov      eax,%1
+    64                              <1>         int      0x80
+    65                              <1>     %endmacro
+    66                              <1> 
+    67                              <1> %elifidn __OUTPUT_FORMAT__, elf64
+    68                              <1> 
+    69                              <1>     %define SYS_EXIT             60
+    70                              <1>     %define SYS_READ              0
+    71                              <1>     %define SYS_WRITE             1
+    72                              <1>     %define SYS_OPEN              2
+    73                              <1>     %define SYS_CLOSE             3
+    74                              <1>     %define SYS_GETPID           39
+    75                              <1>     %define SYS_GETTIMEOFDAY     96
+    76                              <1>     %define SYS_GETPPID         110
+    77                              <1>     %define SYS_TIME            201
+    78                              <1> 
+    79                              <1> 
+    80                              <1>     %macro SYSCALL_1 1
+    81                              <1>         mov      rax,%1
+    82                              <1>         syscall
+    83                              <1>     %endmacro
+    84                              <1> 
+    85                              <1>     %macro SYSCALL_2 2
+    86                              <1>         mov      rax,%1
+    87                              <1>         mov      rdi,%2
+    88                              <1>         syscall
+    89                              <1>     %endmacro
+    90                              <1> 
+    91                              <1>     %macro SYSCALL_3 3
+    92                              <1>         mov      rax,%1
+    93                              <1>         mov      rdi,%2
+    94                              <1>         mov      rsi,%3
+    95                              <1>         syscall
+    96                              <1>     %endmacro
+    97                              <1> 
+    98                              <1>     %macro SYSCALL_4 4
+    99                              <1>         mov      rax,%1
+   100                              <1>         mov      rdi,%2
+   101                              <1>         mov      rsi,%3
+   102                              <1>         mov      rdx,%4
+   103                              <1>         syscall
+   104                              <1>     %endmacro
+   105                              <1> 
+   106                              <1> %elifidn __OUTPUT_FORMAT__, macho64
+   107                              <1> 
+   108                              <1>     %define SYS_EXIT      0x2000001 ; exit system call
+   109                              <1>     %define SYS_WRITE     0x2000004 ; write system call
+   110                              <1> 
+   111                              <1>     %macro SYSCALL_1 1
+   112                              <1>         mov      rax,%1
+   113                              <1>         syscall
+   114                              <1>     %endmacro
+   115                              <1> 
+   116                              <1>     %macro SYSCALL_2 2
+   117                              <1>         mov      rax,%1
+   118                              <1>         mov      rdi,%1
+   119                              <1>         syscall
+   120                              <1>     %endmacro
+   121                              <1> 
+   122                              <1>     %macro SYSCALL_3 3
+   123                              <1>         mov      rax,%1
+   124                              <1>         mov      rdi,%2
+   125                              <1>         mov      rsi,%3
+   126                              <1>         syscall
+   127                              <1>     %endmacro
+   128                              <1> 
+   129                              <1>     %macro SYSCALL_4 4
+   130                              <1>         mov      rax,%1
+   131                              <1>         mov      rdi,%2
+   132                              <1>         mov      rsi,%3
+   133                              <1>         mov      rdx,%4
+   134                              <1>         syscall
+   135                              <1>     %endmacro
+   136                              <1> 
+   137                              <1> %else
+   138                              <1> 
+   139                              <1> ;    print "Unsupported output format!"
+   140                              <1> 
+   141                              <1> %endif  ; __OUTPUT_FORMAT__
+   142                              <1> 
+   143                              <1> %endif  ; SYSCALL_INC
+    19                                  
+    20                                  ;-----------------------------------------------------------------------------
+    21                                  ; CONSTANTS
+    22                                  ;-----------------------------------------------------------------------------
+    23                                  
+    24                                  %define SECS_PER_MIN         60 ; seconds per minute
+    25                                  %define SECS_PER_HOUR        60 * SECS_PER_MIN
+    26                                  %define SECS_PER_DAY         24 * SECS_PER_HOUR
+    27                                  %define DAYS_PER_WEEK         7 ; number of days per week
+    28                                  %define EPOCH_WDAY            4 ; Epoch week day was a Thursday
+    29                                  %define CHR_LF               10 ; Line feed character
+    30                                  
+    31                                  
+    32                                  ;-----------------------------------------------------------------------------
+    33                                  ; Section DATA
+    34                                  ;-----------------------------------------------------------------------------
+    35                                  SECTION .data
+    36                                  
+    37 00000000 48616C6C6F              message: db "Hallo"
+    38 00000005 0A                               db CHR_LF
+    39 00000006 5F5F3A                  hh:      db "__:"
+    40 00000009 5F5F3A                  mm:      db "__:"
+    41 0000000C 5F5F20                  sec:     db "__ "
+    42 0000000F 47544D                           db "GTM"
+    43 00000012 0A                               db CHR_LF
+    44                                  message_len    equ $-message
+    45                                  
+    46                                  
+    47                                  ;-----------------------------------------------------------------------------
+    48                                  ; Section RODATA
+    49                                  ;-----------------------------------------------------------------------------
+    50                                  SECTION .rodata
+    51                                  
+    52                                  ; empty
+    53                                  
+    54                                  
+    55                                  ;-----------------------------------------------------------------------------
+    56                                  ; Section BSS
+    57                                  ;-----------------------------------------------------------------------------
+    58                                  SECTION .bss
+    59                                  
+    60                                  ; timeval structure
+    61                                  timeval:
+    62 00000000 <res 00000008>          tv_sec          resq 1
+    63 00000008 <res 00000008>          tv_usec         resq 1
+    64                                  
+    65 00000010 <res 00000004>          secs_today      resd 1
+    66 00000014 <res 00000004>          days_epoch      resd 1
+    67                                  
+    68                                  ; weekday (0 = Sunday, 1 = Monday, etc)
+    69 00000018 <res 00000001>          wday            resb 1
+    70                                  
+    71                                  hms:
+    72 00000019 <res 00000001>          hours           resb 1
+    73 0000001A <res 00000001>          minutes         resb 1
+    74 0000001B <res 00000001>          seconds         resb 1
+    75                                  
+    76                                  
+    77                                  ;-----------------------------------------------------------------------------
+    78                                  ; Section TEXT
+    79                                  ;-----------------------------------------------------------------------------
+    80                                  SECTION .text
+    81                                  
+    82                                          ;-----------------------------------------------------------
+    83                                          ; PROGRAM'S START ENTRY
+    84                                          ;-----------------------------------------------------------
+    85                                          global _start:function  ; make label available to linker
+    86                                  _start:
+    87                                          ;-----------------------------------------------------------
+    88                                          ; the system call returns the number of seconds since the Unix
+    89                                          ; Epoch (01.01.1970 00:00:00 UTC).
+    90                                          ; The first parameter is a pointer to a timeval structure.
+    91                                          ;-----------------------------------------------------------
+    92                                          SYSCALL_3 SYS_GETTIMEOFDAY, timeval, 0
+    92 00000000 B860000000          <1>  mov rax,%1
+    92 00000005 48BF-               <1>  mov rdi,%2
+    92 00000007 [0000000000000000]  <1>
+    92 0000000F BE00000000          <1>  mov rsi,%3
+    92 00000014 0F05                <1>  syscall
+    93 00000016 488B0425[00000000]              mov     rax, [tv_sec]
+    94                                  
+    95                                          ;-----------------------------------------------------------
+    96                                          ; convert ticks into hours, minutes and seconds of today
+    97                                          ; rax contains the number of seconds since the Epoche
+    98                                          ;-----------------------------------------------------------
+    99 0000001E 4831D2                          xor     rdx,rdx            ; clear upper 64-bit of dividend
+   100 00000021 BB80510100                      mov     rbx,SECS_PER_DAY   ; load divisor
+   101 00000026 48F7F3                          div     rbx                ; div rdx:rax by rbx
+   102                                          ;-----------------------------------------------------------
+   103                                          ; division result: rdx:rax div rbx => rax * rbx + rdx
+   104                                          ; - rax contains the number of days since the Epoche
+   105                                          ; - rdx contains the number of seconds elapsed today
+   106                                          ;
+   107                                          ; Note: since the number of seconds elapsed today easily fits
+   108                                          ; into 32-bit we continue with 32-bit integer arithmetic.
+   109                                          ;-----------------------------------------------------------
+   110 00000029 891425[10000000]                mov     [secs_today],edx
+   111                                  
+   112                                          ;-----------------------------------------------------------
+   113                                          ; calculate the number of hours
+   114                                          ;-----------------------------------------------------------
+   115 00000030 89D0                            mov     eax,edx            ; seconds elapsed today, from above
+   116 00000032 31D2                            xor     edx,edx            ; clear upper 32-bit of dividend
+   117 00000034 BB100E0000                      mov     ebx,SECS_PER_HOUR  ; load divisor
+   118 00000039 F7F3                            div     ebx                ; div edx:eax by ebx
+   119                                          ;-----------------------------------------------------------
+   120                                          ; division result: edx:eax div ebx => eax * ebx + edx
+   121                                          ; - eax contains the number of hours elapsed today
+   122                                          ; - edx contains the number of seconds of the current hour
+   123                                          ;-----------------------------------------------------------
+   124 0000003B 880425[19000000]                mov     [hours],al
+   125                                  
+   126 00000042 B30A                            mov     bl,10
+   127 00000044 F6F3                            div     bl
+   128 00000046 0430                            add     al,'0'
+   129 00000048 80C430                          add     ah,'0'
+   130 0000004B 880425[06000000]                mov     [hh],al
+   131 00000052 882425[07000000]                mov     [hh+1],ah
+   132                                  
+   133                                          ;-----------------------------------------------------------
+   134                                          ; calculate the number of minutes
+   135                                          ;-----------------------------------------------------------
+   136 00000059 89D0                            mov     eax,edx            ; seconds of current hour, from above
+   137 0000005B 31D2                            xor     edx,edx            ; clear upper 32-bit of dividend
+   138 0000005D BB3C000000                      mov     ebx,SECS_PER_MIN   ; load divisor
+   139 00000062 F7F3                            div     ebx                ; div edx:eax by ebx
+   140                                          ;-----------------------------------------------------------
+   141                                          ; division result: edx:eax div ebx => eax * ebx + edx
+   142                                          ; - eax contains the number of minutes of the current hour
+   143                                          ; - edx contains the number of seconds of the current minute
+   144                                          ;-----------------------------------------------------------
+   145 00000064 880425[1A000000]                mov     [minutes],al
+   146 0000006B 881425[1B000000]                mov     [seconds],dl
+   147                                  
+   148                                  
+   149                                          ;-----------------------------------------------------------
+   150                                          ; start of the output for the time to the stdout
+   151                                          ;-----------------------------------------------------------
+   152                                  
+   153                                          ; in eax steht bereits die minuten
+   154                                          ; mov     eax,[minutes]
+   155 00000072 B30A                            mov     bl,10
+   156 00000074 F6F3                            div     bl
+   157 00000076 0430                            add     al,'0'
+   158 00000078 80C430                          add     ah,'0'
+   159 0000007B 880425[09000000]                mov     [mm],al
+   160 00000082 882425[0A000000]                mov     [mm+1],ah
+   161                                  
+   162                                          ; Geht nicht - but why
+   163                                          ; mov     eax,[hours]
+   164                                          ; mov     bl,10
+   165                                          ; div     bl
+   166                                          ; add     al,'0'
+   167                                          ; add     ah,'0'
+   168                                          ; mov     [hh],al
+   169                                          ; mov     [hh+1],ah
+   170                                  
+   171                                          ; Seconds in CHAR umwandeln
+   172 00000089 8B0425[1B000000]                mov     eax,[seconds]   ; Seconds in eax
+   173 00000090 B30A                            mov     bl,10           ; Teiler in bl
+   174 00000092 F6F3                            div     bl              ; eax (seconds) / bl (10) = al REST ah
+   175 00000094 0430                            add     al,'0'          ; char trick 48 ('0') + al
+   176 00000096 80C430                          add     ah,'0'
+   177 00000099 880425[0C000000]                mov     [sec],al        ; char in sec einfügen / ersetzten von _
+   178 000000A0 882425[0D000000]                mov     [sec+1],ah
+   179                                  
+   180                                          ; syscall for the print
+   181 000000A7 BA13000000                      mov    rdx,message_len       
+   182 000000AC 48BE-                           mov    rsi,message
+   182 000000AE [0000000000000000] 
+   183 000000B6 BF01000000                      mov    rdi,1
+   184 000000BB B801000000                      mov    eax,1
+   185                                          
+   186 000000C0 0F05                            syscall
+   187                                  
+   188                                          ;-----------------------------------------------------------
+   189                                          ; create label before program exit for our gdb script
+   190                                          ;-----------------------------------------------------------
+   191                                  _exit:
+   192                                  
+   193                                          ;-----------------------------------------------------------
+   194                                          ; call system exit and return to operating system / shell
+   195                                          ;-----------------------------------------------------------
+   196                                          SYSCALL_2 SYS_EXIT, 0
+   196 000000C2 B83C000000          <1>  mov rax,%1
+   196 000000C7 BF00000000          <1>  mov rdi,%2
+   196 000000CC 0F05                <1>  syscall
+   197                                  
+   198                                          ;-----------------------------------------------------------
+   199                                          ; END OF PROGRAM
+   200                                          ;-----------------------------------------------------------
+   201                                  
