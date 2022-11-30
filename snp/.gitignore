@@ -1,0 +1,71 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+
+# Exclude linker/assembler files
+*.map
+*.lst
+*.sym
+*.dep
+
+# Exclude archive files
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Exclude VIM session files
+*.vim
+
+# Misc files to be excluded as well
+.DS_Store
+*.swp
+*.bak
+*~
+
+# Exclude executable file
+cpuid/cpuid32
+cpuid/cpuid64
+asmtime/asmtime32
+asmtime/asmtime64
+asmtime/labor_tit13/asmtime1
+demo/asmtime64
+toupper/toupper32
+toupper/toupper64
+toupper/strtoupper?
+lettercount/lettercount64
+lettercount/genchartable
+lettercount/asciitable.inc
+asciitoint/asciitoint
+copyij/copyij
+copyij/copyji
